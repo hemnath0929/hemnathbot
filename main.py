@@ -1,6 +1,8 @@
 import sys
 import logging
 import asyncio
+import os
+from aiohttp import web
 
 from config import (
     DISCORD_TOKEN,
@@ -20,6 +22,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger("Main")
 
+async def start_health_check_server():
+    """Starts a lightweight web server for Render/Railway health checks."""
+    port = int(os.environ.get("PORT", 8080))
+    app = web.Application()
+    app.router.add_get("/", lambda req: web.Response(text="Hemnath Bot is live & running 24/7!"))
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    logger.info(f"Health check HTTP server running on port {port}")
+
 async def main():
     if not DISCORD_TOKEN:
         logger.error("DISCORD_TOKEN is missing in .env file! Exiting.")
@@ -38,6 +51,9 @@ async def main():
     memory = MemoryManager(max_history=10)
     reminders = ReminderManager(db_path="reminders.db")
 
+    logger.info("Starting Health Check Web Server...")
+    await start_health_check_server()
+
     logger.info("Starting Antigravity Multi-Channel AI Agent...")
     bot = AgentBot(
         router=router,
@@ -54,3 +70,4 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         logger.info("Bot execution stopped by user.")
+
